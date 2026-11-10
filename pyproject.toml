@@ -19,6 +19,9 @@ classifiers = [
 ]
 dependencies = []
 
+[project.scripts]
+access-review-report = "access_review_report.__main__:main"
+
 [project.urls]
 Homepage = "https://github.com/Trysac/u263-access-review-report"
 Source = "https://github.com/Trysac/u263-access-review-report"

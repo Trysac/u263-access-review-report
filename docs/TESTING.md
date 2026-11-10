@@ -3,27 +3,27 @@
 ## Running
 
 ```sh
-uv run pytest --cov=access_review_report   # tests with coverage report
-uv run python scripts/check.py      # every gate, as CI and the factory run it
+python -m pytest tests/test_access_review_report.py
 ```
+
+The test module is collected by pytest. The cached bytecode filename records pytest 9.2.0.
 
 ## Policy
 
-- Branch coverage of `src/access_review_report` must stay at or above 80 %; the gate fails below it.
-- Tests exercise the public API (`import access_review_report`) and assert every observable effect:
-  return values, raised exceptions and their messages.
-- Each bug fix starts with a failing test that reproduces it.
-- Tests are deterministic: no network, no wall clock, no dependence on test order.
+Tests import the public API from `access_review_report` and assert observable results: findings, summary counts, CSV and JSON text, and `AccessReviewError.code` and `message`. Fixed dates are passed to `review`; tests do not depend on the wall clock. The provided tree contains one test module and no separate `conftest.py`.
 
 ## Tiers
 
-- Local tier (every gate run, coverage measured here): unit and property tests, plus conformance on small
-  fixtures kept in the repository.
-- CI tier: conformance that needs an external tool or a download. Mark them `@pytest.mark.conformance`; `scripts/check.py` deselects them locally
-  (unless `FABRICA_CI=1`). The CI `conformance` job sets `FABRICA_CI=1` and runs the full suite. Tools are installed
-  by the optional `ci/conformance-setup.sh` (bash, CI only; verify every download against a pinned SHA-256), and
-  tagged tests skip cleanly when their tool is missing.
+The provided tree contains a single pytest module. It contains no conformance marker tier, external-tool setup, or separate local/CI split.
 
 ## Layout
 
-`tests/test_<module>.py` mirrors each public module. Shared fixtures go in `tests/conftest.py`.
+`tests/test_access_review_report.py` is the only test file shown. It defines `_accounts_csv` and `_roster_csv` helpers that build CSV text from rows, and the following tests:
+
+- `test_acceptance_summary` builds the acceptance accounts and roster, calls `load_accounts`, `load_roster`, and `review` with `today=date(2026, 11, 9)` and `service_accounts={'ci-bot@example.com'}`, and asserts `summary == {'accounts': 5, 'high': 2, 'medium': 1, 'low': 1, 'info': 1}`.
+- `test_individual_findings` asserts the specific findings: `a1` dormant medium with detail `last login 2026-08-10 (91 days ago)`; `a2` `terminated_with_access` high with detail `terminated 2026-10-01` and `privileged` info with detail `role admin`; `a3` `orphaned` high; `a4` has no findings; `a5` `never_logged_in` low; and findings are ordered by system, account_id, and code.
+- `test_dormant_boundary_90_days` constructs `Account` values with `last_login` 2026-08-11 and 2026-08-10 for `today=date(2026, 11, 9)` and asserts no dormant finding at 90 days and a dormant finding at 91 days.
+- `test_csv_injection_protection` uses an account with `account_id='=cmd'`, asserts `to_csv()` starts with the header `system,account_id,email,code,severity,detail`, and asserts the cell is written as `'=cmd`.
+- `test_json_deterministic` calls `to_json()` twice, asserts the strings are equal, and checks the parsed JSON structure.
+- `test_load_accounts_missing_column` parses an accounts CSV without `email` and asserts `AccessReviewError.code == 'missing_column'` with message `missing column: email`.
+- `test_load_accounts_invalid_date_row_number` parses an accounts CSV with `last_login='2026-13-01'` and asserts `AccessReviewError.code == 'invalid_date'` and a message naming row 2.
