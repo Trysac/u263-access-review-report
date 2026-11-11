@@ -9,4 +9,5 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Added `access-review-report` library for periodic access reviews with CSV/JSON output, CLI, and CSV injection protection.
 - Initial project structure from the factory utility template.
